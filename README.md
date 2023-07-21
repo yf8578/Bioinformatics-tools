@@ -5,3 +5,4 @@
 2. 本科高通量测序课程 https://github.com/hnnd/NGS
 3. Bioinformatics one-liners https://github.com/stephenturner/oneliners
 4. 计算机相关课程 https://github.com/PKUFlyingPig/cs-self-learning
+5. css教程 https://github.com/you-dont-need/You-Dont-Need-JavaScript
