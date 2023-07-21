@@ -1,5 +1,5 @@
 # hiast2-参数
-Website:[http://daehwankimlab.github.io/hisat2/]
+Website: http://daehwankimlab.github.io/hisat2/
 ```
 HISAT2 version 2.1.0 by Daehwan Kim (infphilo@gmail.com, www.ccb.jhu.edu/people/infphilo)
 Usage: 
