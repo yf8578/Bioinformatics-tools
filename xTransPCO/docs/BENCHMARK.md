@@ -1,144 +1,139 @@
-# Benchmark design: TANGO vs trans-PCO
+# Benchmark design: TANGO vs trans-PCO-style tests
 
-This document defines the benchmark plan for comparing TANGO with original trans-PCO and simpler module tests.
+This benchmark plan separates method validation from disease application.
 
 ## 1. Methods to compare
 
-Minimum competitors:
+Implemented now:
 
-1. PC1 test: association with the first module principal component.
-2. MinP: minimum feature-level p-value with effective-test correction.
-3. Variance-component test: quadratic Z-score test.
-4. Original PCO: the original PC-based omnibus test if code is available.
-5. TANGO: dense + variance-component + sparse + optional network component.
+```text
+PC1
+MinP
+variance-component
+PCO-like ACAT baseline
+TANGO
+```
 
-## 2. Simulation benchmark
+Important note: `pco_acat` is a lightweight PC-based omnibus baseline. It is not an exact reproduction of the original six-test PCO implementation. If original trans-PCO code is obtained, it should be added as an external method wrapper.
 
-Simulation should be used first because the ground truth is known.
+## 2. Stage A: simulation benchmark
+
+This is the first benchmark and is already supported by:
+
+```text
+scripts/benchmark_simulation.py
+```
 
 Scenarios:
 
-1. Null: no affected features.
-2. Dense concordant: many affected features with same effect direction.
-3. Dense mixed: many affected features with mixed directions.
-4. Sparse: only one or a few affected features.
-5. Network-localized: affected features form a connected graph neighborhood.
-6. Near-singular correlation: high feature correlation within large modules.
+```text
+null
+dense concordant
+sparse
+mixed-direction
+network-localized
+```
 
 Metrics:
 
-- empirical type I error;
-- power at fixed alpha;
-- p-value calibration;
-- runtime;
-- robustness to correlation estimation error.
-
-## 3. Real-data benchmark: eQTLGen
-
-Primary public benchmark:
-
 ```text
-eQTLGen trans-eQTL summary statistics
+type I error under null
+power under alternatives
+p-value calibration
+runtime
+relative gain over PC1, MinP, VC, and PCO-like baseline
 ```
 
-Reason:
+Run:
 
-- It is expression-level trans-QTL data.
-- It provides SNP-gene Z scores.
-- It is directly relevant to the original trans-PCO setting.
-
-Workflow:
-
-```text
-1. Download eQTLGen trans-eQTL file.
-2. Convert long SNP-gene table into SNP x gene Z-score matrix.
-3. Define modules from WGCNA, GO, Reactome, or selected benchmark modules.
-4. Estimate module correlation matrices from null SNP Z-score vectors.
-5. Run all competing methods on the same SNP-module pairs.
-6. Compare discoveries, calibration, replication, and biological enrichment.
+```bash
+python scripts/benchmark_simulation.py \
+  --out results/simulation_benchmark.tsv \
+  --n-rep 200 \
+  --k 50 \
+  --effect 0.6 \
+  --prop 0.1
 ```
 
-## 4. Real-data benchmark: UKB-PPP pQTL
+## 3. Stage B: matrix plus QTL benchmark
 
-Secondary benchmark:
+This is the best real-data method benchmark because both `R` and `Z` can be obtained from matched or linked resources.
 
-```text
-UKB-PPP pQTL summary statistics
-```
-
-Reason:
-
-- TANGO has a network-smoothed component.
-- Protein-level trans effects are expected to be enriched in PPI and pathway relationships.
-
-Workflow:
+Primary candidate:
 
 ```text
-1. Download summary statistics from UKB-PPP portal.
-2. Map proteins to encoding genes and protein identifiers.
-3. Construct PPI or Reactome modules.
-4. Run TANGO with and without network component.
-5. Test whether the network component improves discovery and interpretability.
+Aydin et al. 2023 pluripotent proteome multiomics QTL dataset
 ```
 
-## 5. Real-data benchmark: mQTL
-
-Optional benchmark:
+Use:
 
 ```text
-GoDMC or eGTEx mQTL summary statistics
+molecular matrices -> estimate R
+reported QTL results or re-mapped QTL -> construct Z
+GO/pathway/factor/hotspot modules -> define M
 ```
 
-Purpose:
+This stage should be used to compare TANGO against original trans-PCO-style methods most fairly.
 
-- Demonstrate that TANGO is not limited to expression or protein QTLs.
-- Evaluate whether the same module-level test can work for methylation features.
+## 4. Stage C: PE/placenta matrix application
+
+Primary PE dataset:
+
+```text
+Piekos et al. 2025 Hood-Lab-Placental-Multiomics
+```
+
+Use this dataset for:
+
+```text
+PE/FGR/HDP module construction
+placenta-specific R estimation
+condition-specific network/community G
+PE disease relevance annotation
+```
+
+Then combine these modules with external QTL Z scores. This is an application layer, not necessarily a complete QTL benchmark by itself.
+
+## 5. Stage D: large summary-statistics benchmark
+
+Use:
+
+```text
+eQTLGen trans-eQTL
+GTEx QTL
+UKB-PPP pQTL
+GoDMC/eGTEx mQTL if accessible
+```
+
+Use this stage for scale and external biological validation. Do not claim exact individual-level trans-PCO reproduction from summary-only resources.
 
 ## 6. Fairness rules
 
-All methods must use:
-
-- the same SNP-module pairs;
-- the same feature set per module;
-- the same feature correlation matrix;
-- the same LD clumping procedure;
-- the same FDR procedure.
-
-## 7. Expected output tables
-
-Recommended result schema:
+All methods must use the same:
 
 ```text
+SNP-module pairs
+feature set per module
+feature correlation matrix R
+LD pruning or clumping procedure
+FDR procedure
+```
+
+## 7. Output schema
+
+Recommended result table:
+
+```text
+dataset
+stage
 snp
 module
 method
 pvalue
 qvalue
 n_features
-component_pvalues
-lead_feature
-lead_feature_z
-module_annotation
-```
-
-## 8. Recommended first reproducible benchmark
-
-Start with a small eQTLGen subset:
-
-```bash
-bash scripts/download_public_data.sh
-python scripts/prepare_eqtlgen_benchmark.py \
-  --input data/raw/eqtlgen/trans/2018-09-04-trans-eQTLsFDR-CohortInfoRemoved-BonferroniAdded.txt.gz \
-  --outdir data/interim/eqtlgen_small \
-  --max-snps 2000 \
-  --max-genes 500
-```
-
-Then run:
-
-```bash
-tangoqtl scan \
-  --z data/interim/eqtlgen_small/eqtlgen_z_matrix.tsv \
-  --module data/interim/eqtlgen_small/eqtlgen_modules.tsv \
-  --out data/processed/eqtlgen_small/tango_results.tsv
+n_causal_if_simulated
+effect_architecture
+runtime_seconds
+notes
 ```
