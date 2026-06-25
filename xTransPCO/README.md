@@ -2,85 +2,115 @@
 
 TANGO means **Trans-regulatory Adaptive Network Gene-set Omnibus**.
 
-This project started from the idea of improving trans-PCO. The method implemented here should not still be called PCO, because PCO means principal-component omnibus. TANGO is different: it combines dense, sparse, variance-component, and optional network-smoothed evidence for module-level trans-QTL testing.
+This project develops a new adaptive module-level trans-QTL test that can be used as the final testing component inside a trans-PCO-style workflow.
 
-## Core idea
+## Why not call it PCO?
 
-A trans-PCO-style workflow has three parts:
+PCO means principal-component omnibus. TANGO is not only PC-based. It combines evidence from several effect architectures:
 
-1. prepare SNP-feature association statistics;
-2. group molecular features into modules;
-3. test each SNP-module pair.
+1. dense concordant effects;
+2. variance-component heterogeneous effects;
+3. sparse feature-level effects;
+4. optional network-coherent effects.
 
-TANGO improves the third part. It is a replacement or complement for the original PC-based omnibus test.
+Therefore, TANGO is a replacement or complement for the final PC-based omnibus component, not merely a renamed PCO implementation.
 
-## Input
+## Required statistical input
 
 For one SNP and one module:
 
-- `z`: vector of SNP-feature Z scores;
-- `corr`: feature correlation matrix;
-- `network`: optional biological graph matrix.
+```text
+z       SNP-feature Z-score vector
+corr    feature-feature correlation matrix
+network optional biological network matrix
+```
 
-The features can be genes, proteins, CpG sites, metabolites, or other molecular traits.
+For genome-wide analysis, repeat this over many SNP-module pairs.
 
-## Implemented tests
+## Current implementation
 
-TANGO currently combines:
+```text
+python/tangoqtl/core.py        TANGO test
+python/tangoqtl/baselines.py   PC1, MinP, VC, and PCO-like baselines
+python/tangoqtl/covariance.py  correlation regularization
+python/tangoqtl/sim.py         simulation helper functions
+scripts/benchmark_simulation.py simulation benchmark driver
+scripts/prepare_matrix_reference.py matrix-to-correlation preprocessing
+```
 
-1. dense burden test;
-2. variance-component test;
-3. sparse MinP test;
-4. optional network-smoothed test.
+## Data strategy
 
-The final p-value is computed by ACAT.
+The benchmark is now separated into four tiers:
 
-## Python quick start
+1. **Simulation benchmark**: first-line validation with known truth.
+2. **Matrix + QTL benchmark**: best for method comparison against trans-PCO-style tests.
+3. **PE/placenta matrix benchmark**: use disease multiomics matrices to define modules and estimate placenta-specific correlations.
+4. **Large summary-statistics benchmark**: use eQTLGen, UKB-PPP, GTEx, and related QTL resources for scale and external evidence.
+
+See:
+
+```text
+docs/DATA_STRATEGY.md
+data/dataset_inventory.tsv
+```
+
+## Run simulation benchmark
 
 ```bash
 cd xTransPCO
 python -m pip install -e .
-python examples/python_quickstart.py
+python scripts/benchmark_simulation.py --out results/simulation_benchmark.tsv --n-rep 200
 ```
 
-```python
-import numpy as np
-from tangoqtl import tango_test
-
-z = np.array([2.1, 1.7, -0.4, 0.8, 1.2])
-corr = np.eye(len(z))
-res = tango_test(z, corr=corr)
-print(res.as_dict())
-```
-
-## R quick start
-
-```r
-setwd("xTransPCO/rpkg")
-devtools::load_all(".")
-
-z <- c(2.1, 1.7, -0.4, 0.8, 1.2)
-corr <- diag(length(z))
-tango_test(z, corr = corr)
-```
-
-## Directory layout
+This compares:
 
 ```text
-xTransPCO/
-├── pyproject.toml
-├── python/tangoqtl/
-├── rpkg/
-├── docs/
-├── examples/
-└── tests/
+PC1
+MinP
+variance-component
+PCO-like ACAT baseline
+TANGO
 ```
 
-## Method documents
+under:
 
-- `docs/METHOD.md`: mathematical derivation.
-- `docs/ROADMAP.md`: development roadmap.
+```text
+null
+dense
+sparse
+mixed
+network-localized
+```
 
-## Dissertation positioning
+## Prepare a molecular matrix reference
 
-TANGO generalizes the final module-level test of the trans-PCO framework from PC-space adaptivity to effect-architecture adaptivity. It targets dense, sparse, mixed-direction, and network-coherent trans-regulatory architectures.
+Example for a generic samples-by-features CSV matrix:
+
+```bash
+python scripts/prepare_matrix_reference.py \
+  --matrix path/to/matrix.csv \
+  --id-col sample_id \
+  --outdir data/interim/placenta_reference
+```
+
+The script outputs a cleaned matrix, feature correlation matrix, and module file.
+
+## PE/placenta data source
+
+The Piekos et al. 2025 placenta multiomics repository provides processed transcriptomic, miRNA, proteomic, metabolomic, clinical, histopathology, and condition-specific community data. It should be used for PE/FGR/HDP module construction and placenta-specific correlation estimation.
+
+## Matrix + QTL benchmark source
+
+Aydin et al. 2023 pluripotent proteome multiomics QTL data are the current strongest candidate for a method benchmark because processed molecular matrices and genetic mapping results are both available.
+
+## Repository policy
+
+Do not commit large raw public datasets. Download them under git-ignored paths:
+
+```text
+data/raw/
+data/interim/
+data/processed/
+```
+
+Commit scripts, manifests, documentation, and very small toy/simulation outputs only.
