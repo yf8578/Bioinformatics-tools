@@ -2,7 +2,8 @@
 
 from .core import TangoResult, tango_test, scan_modules
 from .covariance import shrink_correlation, estimate_null_correlation
-from .simulation import simulate_z_scores
+from .sim import simulate_z_scores
+from .baselines import pc1_test, minp_test, vc_test, pco_acat_test, run_baselines
 
 __version__ = "0.1.0"
 
@@ -13,4 +14,9 @@ __all__ = [
     "shrink_correlation",
     "estimate_null_correlation",
     "simulate_z_scores",
+    "pc1_test",
+    "minp_test",
+    "vc_test",
+    "pco_acat_test",
+    "run_baselines",
 ]
