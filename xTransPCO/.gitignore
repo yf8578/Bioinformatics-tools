@@ -1,0 +1,34 @@
+# Python/R build artifacts
+__pycache__/
+*.pyc
+.Rhistory
+.RData
+.Rproj.user/
+*.egg-info/
+build/
+dist/
+
+# Large public datasets should be downloaded locally, not committed.
+data/raw/
+data/interim/
+data/processed/
+*.gz
+*.bgz
+*.zip
+*.tar
+*.tar.gz
+*.parquet
+*.rds
+*.RDS
+*.h5
+*.h5ad
+*.bed
+*.bim
+*.fam
+*.pgen
+*.pvar
+*.psam
+
+# Keep tiny toy data if generated manually and intentionally added.
+!data/toy/
+!data/toy/*.tsv
